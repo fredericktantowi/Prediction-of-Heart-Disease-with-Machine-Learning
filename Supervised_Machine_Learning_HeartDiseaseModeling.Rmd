@@ -8,22 +8,66 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(class)
+library(corrplot)
+library(Hmisc)
+library(fastDummies)
+```
+
+
 ## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Loading the data
+```{r}
+heart <- read_csv("heart.csv")
+summary(heart)
+head(heart)
+```
+```{r}
+#Change variable to data type "factor"
+heart$HeartDisease <- as.factor(heart$HeartDisease)
+heart$FastingBS <- as.factor(heart$FastingBS)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+#dummifying variables
+heart <- dummy_cols(heart, select_columns = c('Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 'ST_Slope'))
+heart <- subset(heart, select = -c(Sex, ChestPainType, RestingECG, ExerciseAngina, ST_Slope) )
+head(heart)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+rcorr(as.matrix(heart))
+```
+```{r}
+corrplot(cor(heart[,c("Age", "RestingBP", "Cholesterol", "MaxHR", "Oldpeak")]),method='number', number.digits = 1, number.cex = 1.5, tl.cex = 1.5)
+```
+Logistic Regression
+```{r}
+glmModel <- glm(data = heart, formula = HeartDisease ~ ., family = "binomial")
+summary(glmModel)
+```
+Cross Validation
+```{r}
+step(glmModel)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
