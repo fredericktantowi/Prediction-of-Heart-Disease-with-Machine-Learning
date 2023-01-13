@@ -16,6 +16,8 @@ library(caret)
 library(class)
 library(corrplot)
 library(Hmisc)
+library(randomForest)
+library(tree)
 library(fastDummies)
 ```
 
@@ -45,9 +47,16 @@ rcorr(as.matrix(heart))
 ```{r}
 corrplot(cor(heart[,c("Age", "RestingBP", "Cholesterol", "MaxHR", "Oldpeak")]),method='number', number.digits = 1, number.cex = 1.5, tl.cex = 1.5)
 ```
+Splitting Dataset to Train and Test
+```{r}
+sample <- sample(c(TRUE, FALSE), nrow(heart), replace=TRUE, prob=c(0.8,0.2))
+train  <- heart[sample, ]
+test   <- heart[!sample, ]
+```
+
 Logistic Regression
 ```{r}
-glmModel <- glm(data = heart, formula = HeartDisease ~ ., family = "binomial")
+glmModel <- glm(data = train, formula = HeartDisease ~ ., family = "binomial")
 summary(glmModel)
 ```
 Cross Validation
@@ -55,8 +64,47 @@ Cross Validation
 step(glmModel)
 ```
 
+```{r}
+LogModel <- glm(formula = HeartDisease ~ Age + Cholesterol + FastingBS + 
+    Oldpeak + Sex_F + ChestPainType_ASY + ExerciseAngina_N + 
+    ST_Slope_Down + ST_Slope_Flat, family = "binomial", data = train)
 
+predictedProbability <- predict(LogModel, newdata = test, type = "response")
+```
 
+```{r}
+y_pred <- ifelse(predictedProbability > 0.5, 1, 0)
+confusionMatrix(test$HeartDisease, as.factor(y_pred))
+```
+
+Decision Tree
+```{r}
+treeModel <- tree(HeartDisease~., data = train)
+summary(treeModel)
+plot(treeModel)
+```
+```{r}
+#Find optimal tree size
+tree_prun <- cv.tree(treeModel, FUN = prune.misclass)
+plot(tree_prun)
+#8-10 is optimal
+```
+```{r}
+pruned.tree <- prune.misclass(treeModel, best = 8)
+plot(pruned.tree)
+text(pruned.tree, pretty = 0)
+prunePred <- predict(pruned.tree, test, type = "class" )
+tblTreePrune <- confusionMatrix(test$HeartDisease, prunePred)
+tblTreePrune
+```
+
+Random Forests
+```{r}
+rfModel <- randomForest(HeartDisease~.,mtry = 8,  train, ntree = 2000)
+
+predictRF <- predict(rfModel, test)
+confusionMatrix(test$HeartDisease, predictRF)
+```
 
 
 
